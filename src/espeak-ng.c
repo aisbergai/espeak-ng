@@ -111,6 +111,8 @@ static const char *help_text =
     "--sep=<character>\n"
     "\t   Separate phonemes (from -x --ipa) with <character>.\n"
     "\t   Default is space, z means ZWJN character.\n"
+    "--show-length\n"
+	"\t   Show length information\n"
     "--show-pitch\n"
 	"\t   Show pitch information\n"
     "--split=<minutes>\n"
@@ -337,6 +339,7 @@ int main(int argc, char **argv)
 		{ "load",    no_argument,       0, 0x111 },
 		{ "ssml-break", required_argument, 0, 0x112 },
 		{ "show-pitch", optional_argument, 0, 0x113 },
+		{ "show-length", optional_argument, 0, 0x114 },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -598,6 +601,9 @@ int main(int argc, char **argv)
 			break;
 		case 0x113: // --show-pitch
 			phoneme_options |= espeakPHONEMES_SHOWPITCH;
+			break;
+		case 0x114: // --show-length
+			phoneme_options |= espeakPHONEMES_SHOWLENGTH;
 			break;
 		default:
 			exit(0);

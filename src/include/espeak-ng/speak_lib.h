@@ -496,6 +496,7 @@ ESPEAK_API espeak_ERROR espeak_SetPunctuationList(const wchar_t *punctlist);
 #define espeakPHONEMES_SHOWPITCH  0x04
 #define espeakPHONEMES_TRACE      0x08
 #define espeakPHONEMES_MBROLA     0x10
+#define espeakPHONEMES_SHOWLENGTH 0x20
 #define espeakPHONEMES_TIE        0x80
 
 #ifdef __cplusplus
