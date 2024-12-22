@@ -596,7 +596,7 @@ int main(int argc, char **argv)
 		case 0x112: // --ssml-break
 			ssml_break = atoi(optarg2);
 			break;
-		case 0x113: // --pitch
+		case 0x113: // --show-pitch
 			phoneme_options |= espeakPHONEMES_SHOWPITCH;
 			break;
 		default:
