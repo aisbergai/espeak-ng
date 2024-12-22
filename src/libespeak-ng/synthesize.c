@@ -1134,6 +1134,7 @@ int Generate(PHONEME_LIST *phoneme_list, int *n_ph, bool resume)
 	const unsigned char *amp_env;
 	PHONEME_TAB *ph;
 	int use_ipa = 0;
+	int show_pitch = 0;
 	int vowelstart_prev;
 	char phoneme_name[16];
 	static int sourceix = 0;
@@ -1147,6 +1148,9 @@ int Generate(PHONEME_LIST *phoneme_list, int *n_ph, bool resume)
 
 	if (option_phoneme_events & espeakINITIALIZE_PHONEME_IPA)
 		use_ipa = 1;
+	
+	if (option_phoneme_events & espeakINITIALIZE_PHONEME_SHOW_PITCH)
+		show_pitch = 1;
 
 #if USE_MBROLA
 	if (mbrola_name[0] != 0)

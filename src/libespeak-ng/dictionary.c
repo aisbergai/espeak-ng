@@ -579,6 +579,7 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 	int count;
 	int flags;
 	int use_ipa;
+	int show_pitch;
 	int use_tie;
 	int separate_phonemes;
 	char phon_buf[30];
@@ -596,6 +597,8 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 	}
 
 	use_ipa = phoneme_mode & espeakPHONEMES_IPA;
+	show_pitch = phoneme_mode & espeakPHONEMES_SHOWPITCH;
+
 	if (phoneme_mode & espeakPHONEMES_TIE) {
 		use_tie = phoneme_mode >> 8;
 		separate_phonemes = 0;
@@ -660,6 +663,12 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 			}
 			if (plist->tone_ph > 0)
 				buf = WritePhMnemonic(buf, phoneme_tab[plist->tone_ph], plist, use_ipa, NULL);
+		}
+
+		if (show_pitch) {
+			if (plist->pitch1 != 255 || plist->pitch2 != 255) {
+				buf += sprintf(buf, "|%d,%d", plist->pitch1, plist->pitch2);
+			}
 		}
 
 		len = buf - phon_buf;
