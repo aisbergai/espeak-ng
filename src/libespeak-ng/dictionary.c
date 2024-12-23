@@ -579,8 +579,7 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 	int count;
 	int flags;
 	int use_ipa;
-	int show_pitch;
-	int show_length;
+	int show_prosody;
 	int use_tie;
 	int separate_phonemes;
 	char phon_buf[30];
@@ -598,8 +597,7 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 	}
 
 	use_ipa = phoneme_mode & espeakPHONEMES_IPA;
-	show_pitch = phoneme_mode & espeakPHONEMES_SHOWPITCH;
-	show_length = phoneme_mode & espeakPHONEMES_SHOWLENGTH;
+	show_prosody = phoneme_mode & espeakPHONEMES_SHOWPROSODY;
 
 	if (phoneme_mode & espeakPHONEMES_TIE) {
 		use_tie = phoneme_mode >> 8;
@@ -667,15 +665,33 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 				buf = WritePhMnemonic(buf, phoneme_tab[plist->tone_ph], plist, use_ipa, NULL);
 		}
 
-		if (show_pitch) {
+		if (show_prosody) {
+			*buf++ = '(';
+			if (plist->prepause > 0) {
+				buf += sprintf(buf, "w=%d,", plist->prepause);
+			}
 			if (plist->pitch1 != 255 || plist->pitch2 != 255) {
-				buf += sprintf(buf, "|%d,%d", plist->pitch1, plist->pitch2);
+				const char * pitch_env;
+				switch (plist->env) {
+					case 0: pitch_env = "↘"; break; // fall
+					case 1: pitch_env = "↗"; break; // rise
+					case 2: pitch_env = "↑"; break; // frise
+					case 3: pitch_env = "↑↑"; break; // frise2
+					case 4: pitch_env = "↗↘"; break; // risefall
+					case 5: pitch_env = "↘↗"; break; // fallrise
+					case 6: pitch_env = "↘_↗"; break; // fallrise2
+					case 7: pitch_env = "↘↘"; break; // fall2
+					case 8: pitch_env = "↗↗"; break; // rise2
+					case 9: pitch_env = "↗↘↗"; break; // risefallrise
+					default: pitch_env = "";
+				}
+				buf += sprintf(buf, "e=%s,pm=%d,pM=%d,", pitch_env, plist->pitch1, plist->pitch2);
 			}
-		}
-		if (show_length) {
 			if (plist->length > 0) {
-				buf += sprintf(buf, "~%d", plist->length);
+				buf += sprintf(buf, "l=%d,", plist->length);
 			}
+			buf += sprintf(buf, "a=%d", plist->amp);
+			*buf++ = ')';
 		}
 
 		len = buf - phon_buf;

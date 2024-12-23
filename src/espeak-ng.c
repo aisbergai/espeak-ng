@@ -111,10 +111,8 @@ static const char *help_text =
     "--sep=<character>\n"
     "\t   Separate phonemes (from -x --ipa) with <character>.\n"
     "\t   Default is space, z means ZWJN character.\n"
-    "--show-length\n"
-	"\t   Show length information\n"
-    "--show-pitch\n"
-	"\t   Show pitch information\n"
+    "--show-prosody\n"
+	"\t   Show prosody information\n"
     "--split=<minutes>\n"
     "\t   Starts a new WAV file every <minutes>.  Used with -w\n"
     "--stdout   Write speech output to stdout\n"
@@ -338,8 +336,7 @@ int main(int argc, char **argv)
 		{ "compile-phonemes", optional_argument, 0, 0x110 },
 		{ "load",    no_argument,       0, 0x111 },
 		{ "ssml-break", required_argument, 0, 0x112 },
-		{ "show-pitch", optional_argument, 0, 0x113 },
-		{ "show-length", optional_argument, 0, 0x114 },
+		{ "show-prosody", optional_argument, 0, 0x113 },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -599,11 +596,8 @@ int main(int argc, char **argv)
 		case 0x112: // --ssml-break
 			ssml_break = atoi(optarg2);
 			break;
-		case 0x113: // --show-pitch
-			phoneme_options |= espeakPHONEMES_SHOWPITCH;
-			break;
-		case 0x114: // --show-length
-			phoneme_options |= espeakPHONEMES_SHOWLENGTH;
+		case 0x113: // --show-prosody
+			phoneme_options |= espeakPHONEMES_SHOWPROSODY;
 			break;
 		default:
 			exit(0);

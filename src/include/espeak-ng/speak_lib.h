@@ -491,13 +491,12 @@ ESPEAK_API espeak_ERROR espeak_SetPunctuationList(const wchar_t *punctlist);
 	   EE_INTERNAL_ERROR.
 */
 
-#define espeakPHONEMES_SHOW       0x01
-#define espeakPHONEMES_IPA        0x02
-#define espeakPHONEMES_SHOWPITCH  0x04
-#define espeakPHONEMES_TRACE      0x08
-#define espeakPHONEMES_MBROLA     0x10
-#define espeakPHONEMES_SHOWLENGTH 0x20
-#define espeakPHONEMES_TIE        0x80
+#define espeakPHONEMES_SHOW        0x01
+#define espeakPHONEMES_IPA         0x02
+#define espeakPHONEMES_SHOWPROSODY 0x04
+#define espeakPHONEMES_TRACE       0x08
+#define espeakPHONEMES_MBROLA      0x10
+#define espeakPHONEMES_TIE         0x80
 
 #ifdef __cplusplus
 extern "C"
