@@ -665,7 +665,18 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 				buf = WritePhMnemonic(buf, phoneme_tab[plist->tone_ph], plist, use_ipa, NULL);
 		}
 
-		if (show_prosody) {
+		int show_prosody_for_phoneme = show_prosody;
+		if (separate_phonemes) {
+			if (buf - phon_buf == 1 && *phon_buf == separate_phonemes) {
+				buf--;
+				show_prosody_for_phoneme = 0;
+			}
+		} else {
+			if (buf - phon_buf == 0) {
+				show_prosody_for_phoneme = 0;
+			}
+		}
+		if (show_prosody_for_phoneme) {
 			*buf++ = '(';
 			if (plist->prepause > 0) {
 				buf += sprintf(buf, "w=%d,", plist->prepause);
