@@ -1,0 +1,14 @@
+[Unit]
+Description=ESpeak-NG Server
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/root/workspaces/prod/espeak-ng-server
+ExecStart=/usr/bin/docker compose -f docker-compose.yaml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.yaml down
+
+[Install]
+WantedBy=multi-user.target

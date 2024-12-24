@@ -1,0 +1,7 @@
+version: '3'
+services:
+  espeak-ng:
+    image: adiaisberg/espeak-ng-server
+    ports:
+      - "7496:7496"
+    restart: unless-stopped
