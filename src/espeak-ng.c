@@ -779,8 +779,6 @@ int main(int argc, char **argv)
 			fflush(query_memstream);
 			fclose(query_memstream);
 
-			printf("Received message from client: %s\n", query);
-			
 			// Get result from espeak
 			char* result = NULL;
     		size_t result_size = 0;
@@ -796,8 +794,6 @@ int main(int argc, char **argv)
 			}
 			fflush(memstream);
     		fclose(memstream);
-
-			fprintf(stderr, "Result: len=%d str=%.*s\n", (int)result_size, (int)result_size, result);
 			
 			// Send response
 			size_t bytes_sent = 0;
@@ -809,7 +805,6 @@ int main(int argc, char **argv)
 				}
 				bytes_sent += sent;
 			}
-			printf("Response sent to client (%zu bytes)\n", bytes_sent);
 			
 			// Clean up
 			free(result);
