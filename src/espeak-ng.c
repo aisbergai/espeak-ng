@@ -782,8 +782,8 @@ int main(int argc, char **argv)
 			// Get result from espeak
 			char* result = NULL;
     		size_t result_size = 0;
-			FILE* memstream = open_memstream(&result, &result_size);
-			espeak_SetPhonemeTrace(phoneme_options | (phonemes_separator << 8), memstream);
+			FILE* result_memstream = open_memstream(&result, &result_size);
+			espeak_SetPhonemeTrace(phoneme_options | (phonemes_separator << 8), result_memstream);
 			espeak_Synth(query, query_size+1, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
 			espeak_ng_STATUS synth_result = espeak_ng_Synchronize();
 			if (synth_result != ENS_OK) {
@@ -792,8 +792,8 @@ int main(int argc, char **argv)
 				close(client_socket);
 				continue;
 			}
-			fflush(memstream);
-    		fclose(memstream);
+			fflush(result_memstream);
+    		fclose(result_memstream);
 			
 			// Send response
 			size_t bytes_sent = 0;
