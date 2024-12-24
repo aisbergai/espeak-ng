@@ -1,4 +1,3 @@
-version: '3'
 services:
   espeak-ng:
     image: adiaisberg/espeak-ng-server
