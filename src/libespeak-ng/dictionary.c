@@ -673,8 +673,6 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 				buf = WritePhMnemonic(buf, phoneme_tab[plist->tone_ph], plist, use_ipa, NULL);
 		}
 
-		fprintf(stderr, "phoneme %x -> %.*s\n", plist->ph->mnemonic, buf-phon_buf, phon_buf);
-
 		if (use_ipa && plist->ph->mnemonic==0x2d40) { // short schwa (@-) doesn't have an IPA translation (we're going to use ə̆)
 			buf += utf8_out(0x259, buf);
 			buf += utf8_out(0x306, buf);
