@@ -17,6 +17,8 @@
  * along with this program; if not, see: <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+
 #include "config.h"
 
 #include <ctype.h>
@@ -30,6 +32,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include <espeak-ng/espeak_ng.h>
 #include <espeak-ng/speak_lib.h>
@@ -40,6 +45,14 @@
 
 #ifndef PLAYBACK_MODE
 #define PLAYBACK_MODE ENOUTPUT_MODE_SPEAK_AUDIO
+#endif
+
+#ifndef PORT
+#define PORT 7496
+#endif
+
+#ifndef BUFFER_SIZE
+#define BUFFER_SIZE 1024
 #endif
 
 extern ESPEAK_NG_API void strncpy0(char *to, const char *from, int size);
@@ -111,6 +124,8 @@ static const char *help_text =
     "--sep=<character>\n"
     "\t   Separate phonemes (from -x --ipa) with <character>.\n"
     "\t   Default is space, z means ZWJN character.\n"
+    "--server-mode\n"
+    "\t   Listens on port 7496 for texts to convert using the rest of the options.\n"
     "--show-prosody\n"
 	"\t   Show prosody information\n"
     "--split=<minutes>\n"
@@ -337,6 +352,7 @@ int main(int argc, char **argv)
 		{ "load",    no_argument,       0, 0x111 },
 		{ "ssml-break", required_argument, 0, 0x112 },
 		{ "show-prosody", optional_argument, 0, 0x113 },
+		{ "server-mode", optional_argument, 0, 0x114 },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -369,6 +385,7 @@ int main(int argc, char **argv)
 	int option_waveout = 0;
 	int ssml_break = -1;
 	bool deterministic = 0;
+	bool server_mode = 0;
 	
 	espeak_VOICE voice_select;
 	char filename[200];
@@ -599,6 +616,9 @@ int main(int argc, char **argv)
 		case 0x113: // --show-prosody
 			phoneme_options |= espeakPHONEMES_SHOWPROSODY;
 			break;
+		case 0x114: // --server-mode
+			server_mode = 1;
+			break;
 		default:
 			exit(0);
 		}
@@ -695,109 +715,212 @@ int main(int argc, char **argv)
 	if (option_punctuation == 2)
 		espeak_SetPunctuationList(option_punctlist);
 
-	espeak_SetPhonemeTrace(phoneme_options | (phonemes_separator << 8), f_phonemes_out);
-
-	if (filename[0] == 0) {
-		if ((optind < argc) && (flag_stdin == 0)) {
-			// there's a non-option parameter, and no -f or --stdin
-			// use it as text
-			p_text = argv[optind];
-		} else {
-			f_text = stdin;
-			if (flag_stdin == 0)
-				flag_stdin = 2;
-		}
-	} else {
-		struct stat st;
-		if (stat(filename, &st) != 0) {
-			fprintf(stderr, "Failed to stat() file '%s'\n", filename);
+	if (server_mode) {
+		int server_fd, client_socket;
+		struct sockaddr_in address;
+		int opt = 1;
+		int addrlen = sizeof(address);
+		
+		// Create socket file descriptor
+		if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+			perror("socket failed");
 			exit(EXIT_FAILURE);
 		}
-		filesize = GetFileLength(filename);
-		f_text = fopen(filename, "r");
-		if (f_text == NULL) {
-			fprintf(stderr, "Failed to read file '%s'\n", filename);
+		
+		// Set socket options
+		if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
+					&opt, sizeof(opt))) {
+			perror("setsockopt failed");
 			exit(EXIT_FAILURE);
 		}
-		if (S_ISFIFO(st.st_mode)) {
-			flag_stdin = 2;
-		}
-	}
-
-	if (p_text != NULL) {
-		int size;
-		size = strlen(p_text);
-		espeak_Synth(p_text, size+1, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
-	} else if (flag_stdin) {
-		size_t max = 1000;
-		if ((p_text = (char *)malloc(max)) == NULL) {
-			espeak_ng_PrintStatusCodeMessage(ENOMEM, stderr, NULL);
+		
+		address.sin_family = AF_INET;
+		address.sin_addr.s_addr = INADDR_ANY;
+		address.sin_port = htons(PORT);
+		
+		// Bind socket to the port
+		if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+			perror("bind failed");
 			exit(EXIT_FAILURE);
 		}
+		
+		// Listen for connections
+		if (listen(server_fd, 3) < 0) {
+			perror("listen failed");
+			exit(EXIT_FAILURE);
+		}
+		
+		printf("Server is listening on port %d...\n", PORT);
 
-		if (flag_stdin == 2) {
-			// line by line input on stdin or from FIFO
-			while (fgets(p_text, max, f_text) != NULL) {
-				p_text[max-1] = 0;
-				espeak_Synth(p_text, max, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
-				// Allow subprocesses to use the audio data through pipes.
-				fflush(stdout);
+		while(1) {
+			// Accept incoming connection
+			if ((client_socket = accept(server_fd, (struct sockaddr *)&address, 
+									(socklen_t*)&addrlen)) < 0) {
+				perror("accept failed");
+				continue;
 			}
-			if (f_text != stdin) {
-				fclose(f_text);
-			}
-		} else {
-			// bulk input on stdin
-			ix = 0;
-			while (true) {
-				if ((c = fgetc(stdin)) == EOF)
+
+			char* query = NULL;
+    		size_t query_size = 0;
+			FILE* query_memstream = open_memstream(&query, &query_size);
+
+			char buffer[BUFFER_SIZE];
+			while (1) {
+				int size = read(client_socket, buffer, BUFFER_SIZE);
+				if (size < 0) {
+					perror("Failed to read data from client");
 					break;
-				p_text[ix++] = (char)c;
-				if (ix >= (max-1)) {
-					char *new_text = NULL;
-					if (max <= SIZE_MAX - 1000) {
-						max += 1000;
-						new_text = (char *)realloc(p_text, max);
-					}
-					if (new_text == NULL) {
-						free(p_text);
-						espeak_ng_PrintStatusCodeMessage(ENOMEM, stderr, NULL);
-						exit(EXIT_FAILURE);
-					}
-					p_text = new_text;
+				}
+				fwrite(buffer, 1, size, query_memstream);
+				if (size < BUFFER_SIZE) {
+					break;
 				}
 			}
-			if (ix > 0) {
-				p_text[ix] = 0;
-				espeak_Synth(p_text, ix, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
+			fflush(query_memstream);
+			fclose(query_memstream);
+
+			printf("Received message from client: %s\n", query);
+			
+			// Get result from espeak
+			char* result = NULL;
+    		size_t result_size = 0;
+			FILE* memstream = open_memstream(&result, &result_size);
+			espeak_SetPhonemeTrace(phoneme_options | (phonemes_separator << 8), memstream);
+			espeak_Synth(query, query_size+1, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
+			espeak_ng_STATUS synth_result = espeak_ng_Synchronize();
+			if (synth_result != ENS_OK) {
+				const char* error_msg = "Server error: Could not generate result\n";
+				send(client_socket, error_msg, strlen(error_msg), 0);
+				close(client_socket);
+				continue;
+			}
+			fflush(memstream);
+    		fclose(memstream);
+
+			fprintf(stderr, "Result: len=%d str=%.*s\n", (int)result_size, (int)result_size, result);
+			
+			// Send response
+			size_t bytes_sent = 0;
+			while (bytes_sent < result_size) {
+				ssize_t sent = send(client_socket, result + bytes_sent, result_size - bytes_sent, 0);
+				if (sent < 0) {
+					perror("Failed to send data to client");
+					break;
+				}
+				bytes_sent += sent;
+			}
+			printf("Response sent to client (%zu bytes)\n", bytes_sent);
+			
+			// Clean up
+			free(result);
+			close(client_socket);
+		}
+	} else {
+		espeak_SetPhonemeTrace(phoneme_options | (phonemes_separator << 8), f_phonemes_out);
+
+		if (filename[0] == 0) {
+			if ((optind < argc) && (flag_stdin == 0)) {
+				// there's a non-option parameter, and no -f or --stdin
+				// use it as text
+				p_text = argv[optind];
+			} else {
+				f_text = stdin;
+				if (flag_stdin == 0)
+					flag_stdin = 2;
+			}
+		} else {
+			struct stat st;
+			if (stat(filename, &st) != 0) {
+				fprintf(stderr, "Failed to stat() file '%s'\n", filename);
+				exit(EXIT_FAILURE);
+			}
+			filesize = GetFileLength(filename);
+			f_text = fopen(filename, "r");
+			if (f_text == NULL) {
+				fprintf(stderr, "Failed to read file '%s'\n", filename);
+				exit(EXIT_FAILURE);
+			}
+			if (S_ISFIFO(st.st_mode)) {
+				flag_stdin = 2;
 			}
 		}
 
-		free(p_text);
-	} else if (f_text != NULL) {
-		if ((p_text = (char *)malloc(filesize+1)) == NULL) {
-			espeak_ng_PrintStatusCodeMessage(ENOMEM, stderr, NULL);
+		if (p_text != NULL) {
+			int size;
+			size = strlen(p_text);
+			espeak_Synth(p_text, size+1, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
+		} else if (flag_stdin) {
+			size_t max = 1000;
+			if ((p_text = (char *)malloc(max)) == NULL) {
+				espeak_ng_PrintStatusCodeMessage(ENOMEM, stderr, NULL);
+				exit(EXIT_FAILURE);
+			}
+
+			if (flag_stdin == 2) {
+				// line by line input on stdin or from FIFO
+				while (fgets(p_text, max, f_text) != NULL) {
+					p_text[max-1] = 0;
+					espeak_Synth(p_text, max, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
+					// Allow subprocesses to use the audio data through pipes.
+					fflush(stdout);
+				}
+				if (f_text != stdin) {
+					fclose(f_text);
+				}
+			} else {
+				// bulk input on stdin
+				ix = 0;
+				while (true) {
+					if ((c = fgetc(stdin)) == EOF)
+						break;
+					p_text[ix++] = (char)c;
+					if (ix >= (max-1)) {
+						char *new_text = NULL;
+						if (max <= SIZE_MAX - 1000) {
+							max += 1000;
+							new_text = (char *)realloc(p_text, max);
+						}
+						if (new_text == NULL) {
+							free(p_text);
+							espeak_ng_PrintStatusCodeMessage(ENOMEM, stderr, NULL);
+							exit(EXIT_FAILURE);
+						}
+						p_text = new_text;
+					}
+				}
+				if (ix > 0) {
+					p_text[ix] = 0;
+					espeak_Synth(p_text, ix, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
+				}
+			}
+
+			free(p_text);
+		} else if (f_text != NULL) {
+			if ((p_text = (char *)malloc(filesize+1)) == NULL) {
+				espeak_ng_PrintStatusCodeMessage(ENOMEM, stderr, NULL);
+				exit(EXIT_FAILURE);
+			}
+
+			fread(p_text, 1, filesize, f_text);
+			p_text[filesize] = 0;
+			espeak_Synth(p_text, filesize+1, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
+			fclose(f_text);
+
+			free(p_text);
+		}
+
+		result = espeak_ng_Synchronize();
+		if (result != ENS_OK) {
+			espeak_ng_PrintStatusCodeMessage(result, stderr, NULL);
 			exit(EXIT_FAILURE);
 		}
 
-		fread(p_text, 1, filesize, f_text);
-		p_text[filesize] = 0;
-		espeak_Synth(p_text, filesize+1, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
-		fclose(f_text);
+		if (f_phonemes_out != stdout)
+			fclose(f_phonemes_out);
 
-		free(p_text);
+		CloseWavFile();
 	}
 
-	result = espeak_ng_Synchronize();
-	if (result != ENS_OK) {
-		espeak_ng_PrintStatusCodeMessage(result, stderr, NULL);
-		exit(EXIT_FAILURE);
-	}
-
-	if (f_phonemes_out != stdout)
-		fclose(f_phonemes_out);
-
-	CloseWavFile();
 	espeak_ng_Terminate();
 	return 0;
 }
