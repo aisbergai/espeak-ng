@@ -665,18 +665,12 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 				buf = WritePhMnemonic(buf, phoneme_tab[plist->tone_ph], plist, use_ipa, NULL);
 		}
 
-		int show_prosody_for_phoneme = show_prosody;
-		if (separate_phonemes) {
-			if (buf - phon_buf == 1 && *phon_buf == separate_phonemes) {
-				buf--;
-				show_prosody_for_phoneme = 0;
-			}
-		} else {
-			if (buf - phon_buf == 0) {
-				show_prosody_for_phoneme = 0;
-			}
+		if (use_ipa && plist->ph->mnemonic==0x2d40) { // short schwa (@-) doesn't have an IPA translation (we're going to use ə̆)
+			buf += utf8_out(0x259, buf);
+			buf += utf8_out(0x306, buf);
 		}
-		if (show_prosody_for_phoneme) {
+
+		if (show_prosody) {
 			*buf++ = '(';
 			if (plist->prepause > 0) {
 				buf += sprintf(buf, "w=%d,", plist->prepause);
