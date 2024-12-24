@@ -493,14 +493,22 @@ char *WritePhMnemonic(char *phon_out, PHONEME_TAB *ph, PHONEME_LIST *plist, int 
 	}
 
 	first = true;
-	for (mnem = ph->mnemonic; (c = mnem & 0xff) != 0; mnem = mnem >> 8) {
+
+	mnem = ph->mnemonic;
+	if (use_ipa) { // convert pauses to ipa
+		if (mnem == 0x5f || mnem == 0x215f) {
+			mnem = 0x7c;
+		} else if (mnem == 0x3a5f) {
+			mnem = 0x2016;
+		}
+	}
+
+	for (; (c = mnem & 0xff) != 0; mnem = mnem >> 8) {
 		if (c == '/')
 			break; // discard phoneme variant indicator
 
 		if (use_ipa) {
 			// convert from ascii to ipa
-			if (first && (c == '_'))
-				break; // don't show pause phonemes
 
 			if ((c == '#') && (ph->type == phVOWEL))
 				break; // # is subscript-h, but only for consonants
@@ -664,6 +672,8 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 			if (plist->tone_ph > 0)
 				buf = WritePhMnemonic(buf, phoneme_tab[plist->tone_ph], plist, use_ipa, NULL);
 		}
+
+		fprintf(stderr, "phoneme %x -> %.*s\n", plist->ph->mnemonic, buf-phon_buf, phon_buf);
 
 		if (use_ipa && plist->ph->mnemonic==0x2d40) { // short schwa (@-) doesn't have an IPA translation (we're going to use ə̆)
 			buf += utf8_out(0x259, buf);
