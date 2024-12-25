@@ -128,6 +128,8 @@ static const char *help_text =
     "\t   Listens on port 7496 for texts to convert using the rest of the options.\n"
     "--show-prosody\n"
 	"\t   Show prosody information\n"
+    "--show-syllables\n"
+	"\t   Show syllables\n"
     "--split=<minutes>\n"
     "\t   Starts a new WAV file every <minutes>.  Used with -w\n"
     "--stdout   Write speech output to stdout\n"
@@ -352,7 +354,8 @@ int main(int argc, char **argv)
 		{ "load",    no_argument,       0, 0x111 },
 		{ "ssml-break", required_argument, 0, 0x112 },
 		{ "show-prosody", optional_argument, 0, 0x113 },
-		{ "server-mode", optional_argument, 0, 0x114 },
+		{ "show-syllables", optional_argument, 0, 0x114 },
+		{ "server-mode", optional_argument, 0, 0x115 },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -616,7 +619,10 @@ int main(int argc, char **argv)
 		case 0x113: // --show-prosody
 			phoneme_options |= espeakPHONEMES_SHOWPROSODY;
 			break;
-		case 0x114: // --server-mode
+		case 0x114: // --show-syllables
+			phoneme_options |= espeakPHONEMES_SHOWSYLLABLES;
+			break;
+		case 0x115: // --server-mode
 			server_mode = 1;
 			break;
 		default:

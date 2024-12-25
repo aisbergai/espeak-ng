@@ -184,6 +184,7 @@ typedef struct {
 #define PHLIST_END_OF_CLAUSE     2
 #define PHLIST_START_OF_SENTENCE 4
 #define PHLIST_START_OF_CLAUSE   8
+#define PHLIST_START_OF_SYLLABLE 16
 
 typedef struct {
 	// The first section is a copy of PHONEME_LIST2

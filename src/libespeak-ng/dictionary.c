@@ -588,6 +588,7 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 	int flags;
 	int use_ipa;
 	int show_prosody;
+	int show_syllables;
 	int use_tie;
 	int separate_phonemes;
 	char phon_buf[30];
@@ -606,6 +607,7 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 
 	use_ipa = phoneme_mode & espeakPHONEMES_IPA;
 	show_prosody = phoneme_mode & espeakPHONEMES_SHOWPROSODY;
+	show_syllables = phoneme_mode & espeakPHONEMES_SHOWSYLLABLES;
 
 	if (phoneme_mode & espeakPHONEMES_TIE) {
 		use_tie = phoneme_mode >> 8;
@@ -613,6 +615,42 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 	} else {
 		separate_phonemes = phoneme_mode >> 8;
 		use_tie = 0;
+	}
+
+	int syllable_begin = 1;
+	for (ix = 1; ix < n_phoneme_list-2; ix++) {
+		if (phoneme_list[ix].newword & PHLIST_START_OF_WORD) {
+			syllable_begin = ix;
+		}
+		// fprintf(stderr, "phoneme: %x (%c) type=%d\n", phoneme_list[ix].ph->mnemonic, phoneme_list[ix].ph->mnemonic&0xff, phoneme_list[ix].ph->type);
+		if (phoneme_list[ix].ph->type == phVOWEL && (phoneme_list[ix].ph->phflags & phNONSYLLABIC) == 0) {
+			int syllable_len = ix - syllable_begin + 1;
+			if (syllable_len <= 2) { // V or CV
+				phoneme_list[syllable_begin].newword |= PHLIST_START_OF_SYLLABLE;
+			} else { // CCV, CCCV, CCCCV....
+				int ph_1_type = phoneme_list[ix-1].ph->type;
+				int ph_2_type = phoneme_list[ix-2].ph->type;
+				// fprintf(stderr, "ph_1_type: %d\n", ph_1_type);
+				// fprintf(stderr, "ph_2_type: %d\n", ph_2_type);
+				if (syllable_len == 3) {
+					if ((ph_2_type == phSTOP || ph_2_type == phVSTOP || ph_2_type == phFRICATIVE || ph_2_type == phVFRICATIVE) && ph_1_type == phLIQUID) {
+						phoneme_list[syllable_begin].newword |= PHLIST_START_OF_SYLLABLE;
+					} else {
+						phoneme_list[ix-1].newword |= PHLIST_START_OF_SYLLABLE;
+					}
+				} else {
+					int ph_2_nonsyl_vowel = (phoneme_list[ix-2].ph->phflags & phNONSYLLABIC) != 0;
+					int ph_3_type = phoneme_list[ix-3].ph->type;
+					// fprintf(stderr, "ph_3_type: %d\n", ph_3_type);
+					if ((ph_3_type == phSTOP || ph_3_type == phVSTOP || ph_3_type == phFRICATIVE || ph_3_type == phVFRICATIVE) && ph_2_nonsyl_vowel) {
+						phoneme_list[syllable_begin].newword |= PHLIST_START_OF_SYLLABLE;
+					} else {
+						phoneme_list[ix-1].newword |= PHLIST_START_OF_SYLLABLE;
+					}
+				}
+			}
+			syllable_begin = ix + 1; // next possible syllable starts after this vowel
+		}
 	}
 
 	for (ix = 1; ix < (n_phoneme_list-2); ix++) {
@@ -623,6 +661,11 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 		WritePhMnemonic(phon_buf2, plist->ph, plist, use_ipa, &flags);
 		if (plist->newword & PHLIST_START_OF_WORD && !(plist->newword & (PHLIST_START_OF_SENTENCE | PHLIST_START_OF_CLAUSE)))
 			*buf++ = ' ';
+		
+		if (show_syllables) {
+			if (plist->newword & PHLIST_START_OF_SYLLABLE && !(plist->newword & PHLIST_START_OF_WORD))
+				*buf++ = '.';
+		}
 
 		if ((!plist->newword) || (separate_phonemes == ' ')) {
 			if ((separate_phonemes != 0) && (ix > 1)) {
@@ -673,9 +716,8 @@ const char *GetTranslatedPhonemeString(int phoneme_mode)
 				buf = WritePhMnemonic(buf, phoneme_tab[plist->tone_ph], plist, use_ipa, NULL);
 		}
 
-		if (use_ipa && plist->ph->mnemonic==0x2d40) { // short schwa (@-) doesn't have an IPA translation (we're going to use ə̆)
-			buf += utf8_out(0x259, buf);
-			buf += utf8_out(0x306, buf);
+		if (plist->ph->mnemonic==0x2d40) { // short schwa (@-) shouldn't be in the output
+			continue;
 		}
 
 		if (show_prosody) {
