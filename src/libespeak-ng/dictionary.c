@@ -493,17 +493,7 @@ char *WritePhMnemonic(char *phon_out, PHONEME_TAB *ph, PHONEME_LIST *plist, int 
 	}
 
 	first = true;
-
-	mnem = ph->mnemonic;
-	if (use_ipa) { // convert pauses to ipa
-		if (mnem == 0x5f || mnem == 0x215f) {
-			mnem = 0x7c;
-		} else if (mnem == 0x3a5f) {
-			mnem = 0x2016;
-		}
-	}
-
-	for (; (c = mnem & 0xff) != 0; mnem = mnem >> 8) {
+	for (mnem = ph->mnemonic; (c = mnem & 0xff) != 0; mnem = mnem >> 8) {
 		if (c == '/')
 			break; // discard phoneme variant indicator
 
