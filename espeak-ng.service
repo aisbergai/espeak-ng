@@ -7,8 +7,7 @@ After=docker.service
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/root/workspaces/prod/espeak-ng
-ExecStartPre=/usr/bin/docker login -u adiaisberg -p dckr_pat_vTmMXPJLc9aHm6zXRFwczTLVBso
-ExecStartPre=/usr/bin/docker pull adiaisberg/espeak-ng-server
+ExecStartPre=/usr/bin/docker login -u adiaisberg -p dckr_pat_vTmMXPJLc9aHm6zXRFwczTLVBso && /usr/bin/docker pull adiaisberg/espeak-ng-server
 ExecStart=/usr/bin/docker compose -f docker-compose.yaml up -d
 ExecStop=/usr/bin/docker compose -f docker-compose.yaml down
 
