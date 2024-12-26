@@ -176,61 +176,64 @@ func TextToPhonemes(text string) ([]Phoneme, error) {
 	for _, clause := range clauses {
 		words := strings.Split(clause, " ")
 		for _, word := range words {
-			phonemeDescs := strings.Split(word, "﹍")
-			for _, phonemeDesc := range phonemeDescs {
-				fparen := strings.Index(phonemeDesc, "(")
-				rparen := strings.LastIndex(phonemeDesc, ")")
-				if fparen != -1 && rparen != -1 {
-					attributes := strings.Split(phonemeDesc[fparen+1:rparen], ",")
-					stress := "none"
-					symbol := []rune(phonemeDesc[:fparen])
-					if symbol[0] == 'ˈ' {
-						stress = "high"
-						symbol = symbol[1:]
-					} else if symbol[0] == 'ˌ' {
-						stress = "low"
-						symbol = symbol[1:]
-					}
-					phoneme := Phoneme{Symbol: string(symbol), Attributes: &PhonemeAttrs{
-						Stress: stress,
-					}}
-					for _, attribute := range attributes {
-						keyValue := strings.Split(attribute, "=")
-						if keyValue[0] == "l" {
-							n, err := strconv.ParseInt(keyValue[1], 10, 32)
-							if err != nil {
-								return nil, err
-							}
-							phoneme.Attributes.LengthMs = int(n)
-						} else if keyValue[0] == "w" {
-							n, err := strconv.ParseInt(keyValue[1], 10, 32)
-							if err != nil {
-								return nil, err
-							}
-							phoneme.Attributes.PrePauseMs = int(n)
-						} else if keyValue[0] == "a" {
-							f, err := strconv.ParseFloat(keyValue[1], 64)
-							if err != nil {
-								return nil, err
-							}
-							phoneme.Attributes.Amplitude = f / 255
-						} else if keyValue[0] == "e" {
-							phoneme.Attributes.PitchEnvelope = keyValue[1]
-						} else if keyValue[0] == "pm" {
-							n, err := strconv.ParseInt(keyValue[1], 10, 32)
-							if err != nil {
-								return nil, err
-							}
-							phoneme.Attributes.PitchMin = int(n)
-						} else if keyValue[0] == "pM" {
-							n, err := strconv.ParseInt(keyValue[1], 10, 32)
-							if err != nil {
-								return nil, err
-							}
-							phoneme.Attributes.PitchMax = int(n)
+			syllables := strings.Split(word, ".")
+			for _, syllable := range syllables {
+				phonemeDescs := strings.Split(syllable, "﹍")
+				for _, phonemeDesc := range phonemeDescs {
+					fparen := strings.Index(phonemeDesc, "(")
+					rparen := strings.LastIndex(phonemeDesc, ")")
+					if fparen != -1 && rparen != -1 {
+						attributes := strings.Split(phonemeDesc[fparen+1:rparen], ",")
+						stress := "none"
+						symbol := []rune(phonemeDesc[:fparen])
+						if symbol[0] == 'ˈ' {
+							stress = "high"
+							symbol = symbol[1:]
+						} else if symbol[0] == 'ˌ' {
+							stress = "low"
+							symbol = symbol[1:]
 						}
+						phoneme := Phoneme{Symbol: string(symbol), Attributes: &PhonemeAttrs{
+							Stress: stress,
+						}}
+						for _, attribute := range attributes {
+							keyValue := strings.Split(attribute, "=")
+							if keyValue[0] == "l" {
+								n, err := strconv.ParseInt(keyValue[1], 10, 32)
+								if err != nil {
+									return nil, err
+								}
+								phoneme.Attributes.LengthMs = int(n)
+							} else if keyValue[0] == "w" {
+								n, err := strconv.ParseInt(keyValue[1], 10, 32)
+								if err != nil {
+									return nil, err
+								}
+								phoneme.Attributes.PrePauseMs = int(n)
+							} else if keyValue[0] == "a" {
+								f, err := strconv.ParseFloat(keyValue[1], 64)
+								if err != nil {
+									return nil, err
+								}
+								phoneme.Attributes.Amplitude = f / 255
+							} else if keyValue[0] == "e" {
+								phoneme.Attributes.PitchEnvelope = keyValue[1]
+							} else if keyValue[0] == "pm" {
+								n, err := strconv.ParseInt(keyValue[1], 10, 32)
+								if err != nil {
+									return nil, err
+								}
+								phoneme.Attributes.PitchMin = int(n)
+							} else if keyValue[0] == "pM" {
+								n, err := strconv.ParseInt(keyValue[1], 10, 32)
+								if err != nil {
+									return nil, err
+								}
+								phoneme.Attributes.PitchMax = int(n)
+							}
+						}
+						phonemes = append(phonemes, phoneme)
 					}
-					phonemes = append(phonemes, phoneme)
 				}
 			}
 		}
