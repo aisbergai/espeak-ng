@@ -37,4 +37,4 @@ RUN ./autogen.sh && \
 EXPOSE 7496
 
 # Set the default command
-CMD ["espeak-ng", "-vro", "-q", "-x", "--sep=﹍", "--ipa", "--show-prosody", "--show-syllables", "--server-mode"]
+CMD ["espeak-ng", "-ven", "-q", "-x", "--sep=﹍", "--ipa", "--show-prosody", "--show-syllables", "--server-mode"]
